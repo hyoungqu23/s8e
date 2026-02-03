@@ -1,0 +1,13 @@
+{
+  "extends": "./packages/configs/typescript/base.json",
+  "compilerOptions": {
+    "paths": {
+      "@s8e/ui": ["./packages/ui/src"],
+      "@s8e/i18n": ["./packages/i18n/src"],
+      "@s8e/ledger-kit": ["./packages/ledger-kit/src"],
+      "@s8e/csv-kit": ["./packages/csv-kit/src"],
+      "@s8e/configs/*": ["./packages/configs/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "apps/*/.next"]
+}

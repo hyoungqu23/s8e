@@ -1,0 +1,35 @@
+{
+  "name": "@s8e/twoline-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "@s8e/ui": "workspace:*",
+    "@s8e/i18n": "workspace:*",
+    "@s8e/ledger-kit": "workspace:*",
+    "@s8e/csv-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@s8e/configs": "workspace:*",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.2.0",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.5",
+    "tailwindcss": "^4.1.18",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0"
+  }
+}
