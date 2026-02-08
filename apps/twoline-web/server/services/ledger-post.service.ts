@@ -51,7 +51,8 @@ export class LedgerPostService {
       kind: "ORIGINAL",
       status: "DRAFT",
       occurredAt: input.occurredAt,
-      memo: input.memo
+      memo: input.memo,
+      source: input.source ?? "MANUAL"
     };
 
     const postings = input.postings.map((posting) => ({
@@ -99,7 +100,7 @@ export class LedgerPostService {
     const originalRecord = this.requireTransaction(postedTransactionId);
     const reversal = voidTransaction(original, { idFactory: this.idFactory });
 
-    return this.persistPostedTransaction(reversal, originalRecord.householdId);
+    return this.persistPostedTransaction(reversal, originalRecord.householdId, originalRecord.source);
   }
 
   deletePosted(postedTransactionId: string): PostedTransactionAggregate {
@@ -111,8 +112,16 @@ export class LedgerPostService {
     const originalRecord = this.requireTransaction(postedTransactionId);
 
     const result = correctTransaction(original, correctionInputs, { idFactory: this.idFactory });
-    const reversal = this.persistPostedTransaction(result.reversal, originalRecord.householdId);
-    const correction = this.persistPostedTransaction(result.correction, originalRecord.householdId);
+    const reversal = this.persistPostedTransaction(
+      result.reversal,
+      originalRecord.householdId,
+      originalRecord.source
+    );
+    const correction = this.persistPostedTransaction(
+      result.correction,
+      originalRecord.householdId,
+      originalRecord.source
+    );
 
     return {
       reversal,
@@ -171,7 +180,8 @@ export class LedgerPostService {
 
   private persistPostedTransaction(
     transaction: PostedTransaction,
-    householdId: string
+    householdId: string,
+    source: TransactionRecord["source"] = "MANUAL"
   ): PostedTransactionAggregate {
     const record: TransactionRecord = {
       id: transaction.id,
@@ -181,7 +191,8 @@ export class LedgerPostService {
       status: "POSTED",
       occurredAt: transaction.occurredAt,
       sourceTransactionId: transaction.sourceTransactionId,
-      memo: transaction.memo
+      memo: transaction.memo,
+      source
     };
 
     this.transactionsRepo.create(record);

@@ -1,6 +1,7 @@
 import type { LedgerPosting, PostingInput, TransactionKind } from "@s8e/ledger-kit";
 
 export type HouseholdTransactionStatus = "DRAFT" | "POSTED";
+export type TransactionSource = "MANUAL" | "QUICK_ADD" | "RECURRING" | "CSV_IMPORT";
 
 export type TransactionRecord = {
   id: string;
@@ -11,6 +12,7 @@ export type TransactionRecord = {
   occurredAt: string;
   sourceTransactionId?: string;
   memo?: string;
+  source: TransactionSource;
 };
 
 export type CreateDraftInput = {
@@ -18,6 +20,7 @@ export type CreateDraftInput = {
   occurredAt: string;
   memo?: string;
   postings: PostingInput[];
+  source?: TransactionSource;
 };
 
 export type PostedTransactionAggregate = {

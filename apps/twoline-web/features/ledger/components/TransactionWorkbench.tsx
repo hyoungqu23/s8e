@@ -92,6 +92,7 @@ export function TransactionWorkbench() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingPosted, setIsLoadingPosted] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isQuickAddApplied, setIsQuickAddApplied] = useState(false);
 
   const selectedTemplate = useMemo(
     () => LEDGER_TEMPLATES.find((template) => template.id === form.templateId),
@@ -140,10 +141,11 @@ export function TransactionWorkbench() {
         templateId: form.templateId,
         occurredAt: form.occurredAt,
         amountMinor: Number(form.amountMinor),
-        memo: form.memo,
-        locale
-      })
-    });
+          memo: form.memo,
+          locale,
+          source: isQuickAddApplied ? "QUICK_ADD" : "MANUAL"
+        })
+      });
 
     if (!response.ok) {
       setNotice(await readErrorMessage(response, locale));
@@ -153,6 +155,7 @@ export function TransactionWorkbench() {
     const data = (await response.json()) as { draft: DraftResponse };
     setDrafts((current) => [data.draft, ...current]);
     setNotice(message(locale, "success.draftSaved"));
+    setIsQuickAddApplied(false);
 
     return data.draft;
   };
@@ -203,6 +206,12 @@ export function TransactionWorkbench() {
         <h1 className="text-2xl font-semibold sm:text-3xl">{message(locale, "title.main")}</h1>
         <p className="text-sm text-slate-600">{notice}</p>
         <div className="flex gap-4">
+          <a
+            href="/dashboard"
+            className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
+          >
+            Dashboard
+          </a>
           <a
             href="/csv-studio"
             className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
@@ -394,6 +403,7 @@ export function TransactionWorkbench() {
             amountMinor: String(parsed.amountMinor),
             memo: parsed.memo || current.memo
           }));
+          setIsQuickAddApplied(true);
           setNotice("Quick Add 결과를 입력 폼에 반영했습니다.");
         }}
       />

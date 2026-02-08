@@ -1,4 +1,5 @@
 import type { AppLocale } from "@/features/ledger/templates/catalog";
+import type { TransactionSource } from "@/server/ledger/types";
 
 export type CreateDraftPayload = {
   householdId: string;
@@ -7,6 +8,7 @@ export type CreateDraftPayload = {
   amountMinor: number;
   memo?: string;
   locale: AppLocale;
+  source?: TransactionSource;
 };
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,6 +25,7 @@ export function parseCreateDraftPayload(value: unknown): CreateDraftPayload {
   const amountMinor = Number(payload.amountMinor);
   const memo = payload.memo?.trim();
   const locale = payload.locale;
+  const source = payload.source;
 
   if (!householdId) {
     throw new Error("VALIDATION_MISSING_HOUSEHOLD_ID");
@@ -39,6 +42,9 @@ export function parseCreateDraftPayload(value: unknown): CreateDraftPayload {
   if (locale !== "ko" && locale !== "en") {
     throw new Error("VALIDATION_INVALID_LOCALE");
   }
+  if (source && !["MANUAL", "QUICK_ADD", "RECURRING", "CSV_IMPORT"].includes(source)) {
+    throw new Error("VALIDATION_INVALID_SOURCE");
+  }
 
   return {
     householdId,
@@ -46,7 +52,8 @@ export function parseCreateDraftPayload(value: unknown): CreateDraftPayload {
     occurredAt,
     amountMinor,
     memo,
-    locale
+    locale,
+    source
   };
 }
 

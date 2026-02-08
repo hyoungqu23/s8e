@@ -29,7 +29,8 @@ export async function POST(request: Request) {
       householdId: payload.householdId,
       occurredAt: payload.occurredAt,
       memo: payload.memo,
-      postings
+      postings,
+      source: payload.source ?? "MANUAL"
     });
 
     return NextResponse.json({

@@ -144,7 +144,8 @@ export class RecurringService {
         householdId: rule.householdId,
         occurredAt: rule.nextRunDate,
         memo: rule.memo,
-        postings
+        postings,
+        source: "RECURRING"
       });
 
       const instance: RecurringInstance = {
