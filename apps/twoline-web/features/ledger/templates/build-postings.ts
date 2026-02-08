@@ -1,6 +1,7 @@
 import type { PostingInput } from "@s8e/ledger-kit";
+import type { AppLocale } from "@/features/i18n/types";
 
-import { getTemplateById, type AppLocale } from "./catalog";
+import { getTemplateById } from "./catalog";
 
 export type TemplateBuildInput = {
   templateId: string;

@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@s8e/ui";
 
+import { useAppLocale } from "@/features/i18n/locale-client";
+import { uiMessage } from "@/features/i18n/messages";
+import type { AppLocale } from "@/features/i18n/types";
 import { QuickAddModal } from "@/features/quick-add/QuickAddModal";
 
-import { message } from "../i18n/messages";
-import { LEDGER_TEMPLATES, type AppLocale } from "../templates/catalog";
+import { LEDGER_TEMPLATES } from "../templates/catalog";
 
 const HOUSEHOLD_ID = "household-demo";
 
@@ -50,35 +52,48 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function normalizeApiMessageKey(key?: string) {
+  if (!key) {
+    return "ledger.error.unknown";
+  }
+
+  const mapping: Record<string, string> = {
+    "error.invalidAmount": "ledger.error.invalidAmount",
+    "error.invalidDate": "ledger.error.invalidDate",
+    "error.templateNotFound": "ledger.error.templateNotFound",
+    "error.unbalanced": "ledger.error.unbalanced",
+    "error.unknown": "ledger.error.unknown"
+  };
+
+  return mapping[key] ?? "ledger.error.unknown";
+}
+
 async function readErrorMessage(response: Response, locale: AppLocale) {
   try {
     const data = (await response.json()) as ApiErrorPayload;
-    if (data.message_key) {
-      return message(locale, data.message_key);
-    }
+    return uiMessage(locale, normalizeApiMessageKey(data.message_key));
   } catch {
-    return message(locale, "error.unknown");
+    return uiMessage(locale, "ledger.error.unknown");
   }
-  return message(locale, "error.unknown");
 }
 
 function validateForm(form: FormState, locale: AppLocale): FieldErrors {
   const errors: FieldErrors = {};
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.occurredAt)) {
-    errors.occurredAt = message(locale, "error.invalidDate");
+    errors.occurredAt = uiMessage(locale, "ledger.error.invalidDate");
   }
 
   const amountMinor = Number(form.amountMinor);
   if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
-    errors.amountMinor = message(locale, "error.invalidAmount");
+    errors.amountMinor = uiMessage(locale, "ledger.error.invalidAmount");
   }
 
   return errors;
 }
 
 export function TransactionWorkbench() {
-  const [locale, setLocale] = useState<AppLocale>("ko");
+  const { locale, setLocale } = useAppLocale();
   const [form, setForm] = useState<FormState>({
     templateId: LEDGER_TEMPLATES[0]?.id ?? "",
     occurredAt: today(),
@@ -122,12 +137,12 @@ export function TransactionWorkbench() {
     const errors = validateForm(form, locale);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setNotice(message(locale, "error.unknown"));
+      setNotice(uiMessage(locale, "ledger.error.unknown"));
       return null;
     }
 
     if (!selectedTemplate) {
-      setNotice(message(locale, "error.templateNotFound"));
+      setNotice(uiMessage(locale, "ledger.error.templateNotFound"));
       return null;
     }
 
@@ -141,11 +156,11 @@ export function TransactionWorkbench() {
         templateId: form.templateId,
         occurredAt: form.occurredAt,
         amountMinor: Number(form.amountMinor),
-          memo: form.memo,
-          locale,
-          source: isQuickAddApplied ? "QUICK_ADD" : "MANUAL"
-        })
-      });
+        memo: form.memo,
+        locale,
+        source: isQuickAddApplied ? "QUICK_ADD" : "MANUAL"
+      })
+    });
 
     if (!response.ok) {
       setNotice(await readErrorMessage(response, locale));
@@ -154,7 +169,7 @@ export function TransactionWorkbench() {
 
     const data = (await response.json()) as { draft: DraftResponse };
     setDrafts((current) => [data.draft, ...current]);
-    setNotice(message(locale, "success.draftSaved"));
+    setNotice(uiMessage(locale, "ledger.success.draftSaved"));
     setIsQuickAddApplied(false);
 
     return data.draft;
@@ -176,7 +191,7 @@ export function TransactionWorkbench() {
 
     setDrafts((current) => current.filter((draft) => draft.id !== draftId));
     await loadPostedTransactions();
-    setNotice(message(locale, "success.posted"));
+    setNotice(uiMessage(locale, "ledger.success.posted"));
   };
 
   const handleSaveDraft = async () => {
@@ -203,49 +218,49 @@ export function TransactionWorkbench() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold sm:text-3xl">{message(locale, "title.main")}</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">{uiMessage(locale, "ledger.title.main")}</h1>
         <p className="text-sm text-slate-600">{notice}</p>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <a
             href="/dashboard"
             className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
           >
-            Dashboard
+            {uiMessage(locale, "nav.dashboard")}
           </a>
           <a
             href="/csv-studio"
             className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
           >
-            CSV Studio
+            {uiMessage(locale, "nav.csvStudio")}
           </a>
           <a
             href="/recurring"
             className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
           >
-            Recurring
+            {uiMessage(locale, "nav.recurring")}
           </a>
         </div>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold">{message(locale, "title.form")}</h2>
+          <h2 className="mb-4 text-lg font-semibold">{uiMessage(locale, "ledger.title.form")}</h2>
 
           <div className="grid gap-4">
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">{message(locale, "label.locale")}</span>
+              <span className="font-medium">{uiMessage(locale, "common.locale")}</span>
               <select
                 className="rounded-lg border border-slate-300 px-3 py-2"
                 value={locale}
                 onChange={(event) => setLocale(event.target.value as AppLocale)}
               >
-                <option value="ko">한국어</option>
-                <option value="en">English</option>
+                <option value="ko">{uiMessage(locale, "common.lang.ko")}</option>
+                <option value="en">{uiMessage(locale, "common.lang.en")}</option>
               </select>
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">{message(locale, "label.template")}</span>
+              <span className="font-medium">{uiMessage(locale, "ledger.label.template")}</span>
               <select
                 className="rounded-lg border border-slate-300 px-3 py-2"
                 value={form.templateId}
@@ -265,7 +280,7 @@ export function TransactionWorkbench() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">{message(locale, "label.occurredAt")}</span>
+              <span className="font-medium">{uiMessage(locale, "ledger.label.occurredAt")}</span>
               <input
                 type="date"
                 className="rounded-lg border border-slate-300 px-3 py-2"
@@ -284,7 +299,7 @@ export function TransactionWorkbench() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">{message(locale, "label.amount")}</span>
+              <span className="font-medium">{uiMessage(locale, "ledger.label.amount")}</span>
               <input
                 type="number"
                 min={1}
@@ -305,7 +320,7 @@ export function TransactionWorkbench() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium">{message(locale, "label.memo")}</span>
+              <span className="font-medium">{uiMessage(locale, "ledger.label.memo")}</span>
               <input
                 type="text"
                 className="rounded-lg border border-slate-300 px-3 py-2"
@@ -322,17 +337,17 @@ export function TransactionWorkbench() {
 
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button variant="secondary" onClick={() => setIsQuickAddOpen(true)}>
-                Quick Add
+                {uiMessage(locale, "nav.quickAdd")}
               </Button>
               <Button disabled={isSubmitting} onClick={() => void handleSaveDraft()}>
-                {message(locale, "button.saveDraft")}
+                {uiMessage(locale, "ledger.button.saveDraft")}
               </Button>
               <Button
                 disabled={isSubmitting}
                 variant="secondary"
                 onClick={() => void handleSaveAndPost()}
               >
-                {message(locale, "button.saveAndPost")}
+                {uiMessage(locale, "ledger.button.saveAndPost")}
               </Button>
             </div>
           </div>
@@ -340,10 +355,10 @@ export function TransactionWorkbench() {
 
         <div className="grid gap-6">
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="mb-3 text-lg font-semibold">{message(locale, "title.drafts")}</h2>
+            <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "ledger.title.drafts")}</h2>
             <div className="grid gap-2">
               {drafts.length === 0 ? (
-                <p className="text-sm text-slate-500">{message(locale, "status.emptyDrafts")}</p>
+                <p className="text-sm text-slate-500">{uiMessage(locale, "ledger.status.emptyDrafts")}</p>
               ) : (
                 drafts.map((draft) => (
                   <div
@@ -359,7 +374,7 @@ export function TransactionWorkbench() {
                       className="shrink-0"
                       onClick={() => void postDraft(draft.id)}
                     >
-                      {message(locale, "button.post")}
+                      {uiMessage(locale, "ledger.button.post")}
                     </Button>
                   </div>
                 ))
@@ -368,19 +383,19 @@ export function TransactionWorkbench() {
           </article>
 
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="mb-3 text-lg font-semibold">{message(locale, "title.posted")}</h2>
+            <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "ledger.title.posted")}</h2>
             <div className="grid gap-2">
               {isLoadingPosted ? (
-                <p className="text-sm text-slate-500">Loading...</p>
+                <p className="text-sm text-slate-500">{uiMessage(locale, "common.loading")}</p>
               ) : posted.length === 0 ? (
-                <p className="text-sm text-slate-500">{message(locale, "status.emptyPosted")}</p>
+                <p className="text-sm text-slate-500">{uiMessage(locale, "ledger.status.emptyPosted")}</p>
               ) : (
                 posted.map((transaction) => (
                   <div key={transaction.id} className="rounded-xl border border-slate-200 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold">{transaction.memo || transaction.id}</p>
                       <span className="text-xs text-slate-600">
-                        {message(locale, `meta.kind.${transaction.kind}`)}
+                        {uiMessage(locale, `ledger.meta.kind.${transaction.kind}`)}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">{transaction.occurredAt}</p>
@@ -393,6 +408,7 @@ export function TransactionWorkbench() {
       </section>
 
       <QuickAddModal
+        locale={locale}
         open={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
         onApply={(parsed) => {
@@ -404,7 +420,7 @@ export function TransactionWorkbench() {
             memo: parsed.memo || current.memo
           }));
           setIsQuickAddApplied(true);
-          setNotice("Quick Add 결과를 입력 폼에 반영했습니다.");
+          setNotice(uiMessage(locale, "ledger.success.quickAddApplied"));
         }}
       />
     </main>

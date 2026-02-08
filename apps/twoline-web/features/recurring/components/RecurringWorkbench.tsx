@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@s8e/ui";
 
+import { useAppLocale } from "@/features/i18n/locale-client";
+import { uiMessage } from "@/features/i18n/messages";
+import type { AppLocale } from "@/features/i18n/types";
 import { LEDGER_TEMPLATES } from "@/features/ledger/templates/catalog";
 
 type RecurringRule = {
@@ -30,6 +33,7 @@ function today() {
 }
 
 export function RecurringWorkbench() {
+  const { locale, setLocale } = useAppLocale();
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [generated, setGenerated] = useState<GeneratedInstance[]>([]);
   const [notice, setNotice] = useState("");
@@ -44,7 +48,7 @@ export function RecurringWorkbench() {
     const response = await fetch(`/api/recurring/rules?householdId=${HOUSEHOLD_ID}`);
     const data = (await response.json()) as { ok: boolean; rules?: RecurringRule[] };
     if (!response.ok || !data.ok || !data.rules) {
-      setNotice("Failed to load recurring rules");
+      setNotice(uiMessage(locale, "recurring.notice.loadFailed"));
       return;
     }
     setRules(data.rules);
@@ -67,16 +71,16 @@ export function RecurringWorkbench() {
         dayOfMonth: Number(dayOfMonth),
         startDate,
         memo,
-        locale: "ko"
+        locale
       })
     });
     const data = (await response.json()) as { ok: boolean; error_code?: string };
     if (!response.ok || !data.ok) {
-      setNotice(`Rule creation failed: ${data.error_code ?? "UNKNOWN"}`);
+      setNotice(uiMessage(locale, "recurring.notice.runFailed", { code: data.error_code ?? "UNKNOWN" }));
       return;
     }
 
-    setNotice("Recurring rule created");
+    setNotice(uiMessage(locale, "recurring.notice.ruleCreated"));
     await loadRules();
   };
 
@@ -96,30 +100,43 @@ export function RecurringWorkbench() {
       error_code?: string;
     };
     if (!response.ok || !data.ok || !data.generated) {
-      setNotice(`Recurring run failed: ${data.error_code ?? "UNKNOWN"}`);
+      setNotice(uiMessage(locale, "recurring.notice.runFailed", { code: data.error_code ?? "UNKNOWN" }));
       return;
     }
 
     setGenerated(data.generated);
-    setNotice(`Generated drafts: ${data.generated.length}`);
+    setNotice(uiMessage(locale, "recurring.notice.generated", { count: data.generated.length }));
     await loadRules();
   };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold sm:text-3xl">Recurring Drafts</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">{uiMessage(locale, "recurring.title")}</h1>
         <p className="text-sm text-slate-600">{notice}</p>
-        <a href="/" className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline">
-          Back to Transactions
-        </a>
+        <div className="flex flex-wrap items-center gap-4">
+          <a href="/" className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline">
+            {uiMessage(locale, "common.backToTransactions")}
+          </a>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium">{uiMessage(locale, "common.locale")}</span>
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-1"
+              value={locale}
+              onChange={(event) => setLocale(event.target.value as AppLocale)}
+            >
+              <option value="ko">{uiMessage(locale, "common.lang.ko")}</option>
+              <option value="en">{uiMessage(locale, "common.lang.en")}</option>
+            </select>
+          </label>
+        </div>
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-lg font-semibold">Create Rule</h2>
+        <h2 className="mb-4 text-lg font-semibold">{uiMessage(locale, "recurring.title.createRule")}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm">
-            <span className="font-medium">Template</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.template")}</span>
             <select
               className="rounded-lg border border-slate-300 px-3 py-2"
               value={templateId}
@@ -127,13 +144,13 @@ export function RecurringWorkbench() {
             >
               {LEDGER_TEMPLATES.map((template) => (
                 <option key={template.id} value={template.id}>
-                  {template.name.ko}
+                  {template.name[locale]}
                 </option>
               ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm">
-            <span className="font-medium">Amount (KRW)</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.amount")}</span>
             <input
               className="rounded-lg border border-slate-300 px-3 py-2"
               type="number"
@@ -143,7 +160,7 @@ export function RecurringWorkbench() {
             />
           </label>
           <label className="grid gap-1 text-sm">
-            <span className="font-medium">Day of month</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.dayOfMonth")}</span>
             <input
               className="rounded-lg border border-slate-300 px-3 py-2"
               type="number"
@@ -154,7 +171,7 @@ export function RecurringWorkbench() {
             />
           </label>
           <label className="grid gap-1 text-sm">
-            <span className="font-medium">Start date</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.startDate")}</span>
             <input
               className="rounded-lg border border-slate-300 px-3 py-2"
               type="date"
@@ -163,7 +180,7 @@ export function RecurringWorkbench() {
             />
           </label>
           <label className="grid gap-1 text-sm sm:col-span-2">
-            <span className="font-medium">Memo</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.memo")}</span>
             <input
               className="rounded-lg border border-slate-300 px-3 py-2"
               type="text"
@@ -173,15 +190,15 @@ export function RecurringWorkbench() {
           </label>
         </div>
         <div className="mt-3">
-          <Button onClick={() => void createRule()}>Create Rule</Button>
+          <Button onClick={() => void createRule()}>{uiMessage(locale, "recurring.button.createRule")}</Button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <h2 className="mb-4 text-lg font-semibold">Run Due Generator</h2>
+        <h2 className="mb-4 text-lg font-semibold">{uiMessage(locale, "recurring.title.run")}</h2>
         <div className="flex flex-wrap items-end gap-2">
           <label className="grid gap-1 text-sm">
-            <span className="font-medium">Target date</span>
+            <span className="font-medium">{uiMessage(locale, "recurring.label.targetDate")}</span>
             <input
               className="rounded-lg border border-slate-300 px-3 py-2"
               type="date"
@@ -189,16 +206,16 @@ export function RecurringWorkbench() {
               onChange={(event) => setRunDate(event.target.value)}
             />
           </label>
-          <Button onClick={() => void runDue()}>Generate Drafts</Button>
+          <Button onClick={() => void runDue()}>{uiMessage(locale, "recurring.button.generateDrafts")}</Button>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="mb-3 text-lg font-semibold">Rules</h2>
+          <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "recurring.title.rules")}</h2>
           <div className="grid gap-2 text-sm">
             {rules.length === 0 ? (
-              <p className="text-slate-500">No rules yet.</p>
+              <p className="text-slate-500">{uiMessage(locale, "recurring.status.noRules")}</p>
             ) : (
               rules.map((rule) => (
                 <div key={rule.id} className="rounded-lg border border-slate-200 p-3">
@@ -213,10 +230,10 @@ export function RecurringWorkbench() {
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="mb-3 text-lg font-semibold">Generated Draft Instances</h2>
+          <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "recurring.title.generated")}</h2>
           <div className="grid gap-2 text-sm">
             {generated.length === 0 ? (
-              <p className="text-slate-500">Run generator to produce drafts.</p>
+              <p className="text-slate-500">{uiMessage(locale, "recurring.status.noGenerated")}</p>
             ) : (
               generated.map((instance) => (
                 <div key={instance.id} className="rounded-lg border border-slate-200 p-3">

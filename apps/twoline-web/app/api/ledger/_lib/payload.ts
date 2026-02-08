@@ -1,4 +1,4 @@
-import type { AppLocale } from "@/features/ledger/templates/catalog";
+import type { AppLocale } from "@/features/i18n/types";
 import type { TransactionSource } from "@/server/ledger/types";
 
 export type CreateDraftPayload = {

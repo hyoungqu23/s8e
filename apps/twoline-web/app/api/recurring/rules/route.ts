@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import type { AppLocale } from "@/features/ledger/templates/catalog";
+import type { AppLocale } from "@/features/i18n/types";
 import { getRecurringService } from "@/server/container";
 
 type CreateRulePayload = {

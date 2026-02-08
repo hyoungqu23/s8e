@@ -1,4 +1,4 @@
-export type AppLocale = "ko" | "en";
+import type { AppLocale } from "@/features/i18n/types";
 
 export type LedgerTemplate = {
   id: string;

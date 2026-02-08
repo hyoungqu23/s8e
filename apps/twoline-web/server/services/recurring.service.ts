@@ -1,5 +1,5 @@
 import { buildPostingsFromTemplate } from "../../features/ledger/templates/build-postings";
-import type { AppLocale } from "../../features/ledger/templates/catalog";
+import type { AppLocale } from "../../features/i18n/types";
 
 import { LedgerPostService } from "./ledger-post.service";
 
