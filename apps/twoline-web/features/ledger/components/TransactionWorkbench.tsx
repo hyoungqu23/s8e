@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@s8e/ui";
 
+import { QuickAddModal } from "@/features/quick-add/QuickAddModal";
+
 import { message } from "../i18n/messages";
 import { LEDGER_TEMPLATES, type AppLocale } from "../templates/catalog";
 
@@ -89,6 +91,7 @@ export function TransactionWorkbench() {
   const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingPosted, setIsLoadingPosted] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   const selectedTemplate = useMemo(
     () => LEDGER_TEMPLATES.find((template) => template.id === form.templateId),
@@ -301,6 +304,9 @@ export function TransactionWorkbench() {
             </label>
 
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+              <Button variant="secondary" onClick={() => setIsQuickAddOpen(true)}>
+                Quick Add
+              </Button>
               <Button disabled={isSubmitting} onClick={() => void handleSaveDraft()}>
                 {message(locale, "button.saveDraft")}
               </Button>
@@ -368,6 +374,21 @@ export function TransactionWorkbench() {
           </article>
         </div>
       </section>
+
+      <QuickAddModal
+        open={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        onApply={(parsed) => {
+          setForm((current) => ({
+            ...current,
+            templateId: parsed.direction === "IN" ? "salary" : current.templateId,
+            occurredAt: parsed.occurredAt,
+            amountMinor: String(parsed.amountMinor),
+            memo: parsed.memo || current.memo
+          }));
+          setNotice("Quick Add 결과를 입력 폼에 반영했습니다.");
+        }}
+      />
     </main>
   );
 }
