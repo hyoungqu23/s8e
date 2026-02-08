@@ -1,21 +1,19 @@
-export type CSVRow = Record<string, string>;
-
-export function parse(csv: string): CSVRow[] {
-  const [headerLine, ...lines] = csv.trim().split(/\r?\n/);
-  const headers = headerLine.split(',');
-  return lines.map((line) => {
-    const values = line.split(',');
-    return headers.reduce<CSVRow>((row, header, idx) => {
-      row[header] = values[idx] ?? '';
-      return row;
-    }, {} as CSVRow);
-  });
-}
-
-export function stringify(rows: CSVRow[]): string {
-  if (rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const headerLine = headers.join(',');
-  const lines = rows.map((row) => headers.map((h) => row[h] ?? '').join(','));
-  return [headerLine, ...lines].join('\n');
-}
+export { withUtf8Bom } from "./encoding/bom";
+export {
+  type CanonicalBundle,
+  type CanonicalAccountRow,
+  type CanonicalTransactionRow,
+  type CanonicalPostingRow,
+  type CanonicalAuditEventRow
+} from "./formats/canonical/bundle";
+export type { CanonicalManifest } from "./formats/canonical/manifest";
+export { parseCanonicalBundle } from "./formats/canonical/parse";
+export { serializeCanonicalBundle } from "./formats/canonical/serialize";
+export type { FlatCsvRow } from "./formats/flat/schema";
+export { parseFlatCsv } from "./formats/flat/parse";
+export { serializeFlatCsv } from "./formats/flat/serialize";
+export { sanitizeCsvCell } from "./security/csv-injection";
+export { CsvErrorCode } from "./validate/errors";
+export { buildCanonicalFingerprint, isDuplicateBundleImport } from "./validate/dedupe";
+export { validateCanonicalBundle } from "./validate/errors";
+export { assertCanonicalRoundTrip } from "./validate/roundtrip";
