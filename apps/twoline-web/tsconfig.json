@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./*"],
       "@s8e/ui": ["../../packages/ui/src"],
       "@s8e/i18n": ["../../packages/i18n/src"],
       "@s8e/ledger-kit": ["../../packages/ledger-kit/src"],
