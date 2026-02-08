@@ -19,6 +19,10 @@ export class InMemoryTransactionsRepo {
     return [...this.byId.values()];
   }
 
+  exists(transactionId: string) {
+    return this.byId.has(transactionId);
+  }
+
   getStatus(transactionId: string): HouseholdTransactionStatus | undefined {
     return this.byId.get(transactionId)?.status;
   }
@@ -61,5 +65,16 @@ export class InMemoryTransactionsRepo {
     }
 
     this.byId.delete(transactionId);
+  }
+
+  snapshot() {
+    return this.listAll().map((record) => ({ ...record }));
+  }
+
+  restore(records: TransactionRecord[]) {
+    this.byId.clear();
+    for (const record of records) {
+      this.byId.set(record.id, { ...record });
+    }
   }
 }

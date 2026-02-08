@@ -35,6 +35,10 @@ export class InMemoryPostingsRepo {
     return postings;
   }
 
+  listAll() {
+    return [...this.byId.values()];
+  }
+
   replaceDraftPostings(transactionId: string, postings: LedgerPosting[]) {
     const status = this.getStatus(transactionId);
     if (status === "POSTED") {
@@ -66,5 +70,21 @@ export class InMemoryPostingsRepo {
       this.byId.delete(postingId);
     }
     this.byTransactionId.delete(transactionId);
+  }
+
+  snapshot() {
+    return this.listAll().map((posting) => ({ ...posting }));
+  }
+
+  restore(postings: LedgerPosting[]) {
+    this.byId.clear();
+    this.byTransactionId.clear();
+
+    for (const posting of postings) {
+      this.byId.set(posting.id, { ...posting });
+      const postingIds = this.byTransactionId.get(posting.transactionId) ?? new Set<string>();
+      postingIds.add(posting.id);
+      this.byTransactionId.set(posting.transactionId, postingIds);
+    }
   }
 }

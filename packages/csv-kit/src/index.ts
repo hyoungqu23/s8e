@@ -1,6 +1,7 @@
 export { withUtf8Bom } from "./encoding/bom";
 export {
   type CanonicalBundle,
+  type CanonicalBundleFile,
   type CanonicalAccountRow,
   type CanonicalTransactionRow,
   type CanonicalPostingRow,
@@ -14,6 +15,7 @@ export { parseFlatCsv } from "./formats/flat/parse";
 export { serializeFlatCsv } from "./formats/flat/serialize";
 export { sanitizeCsvCell } from "./security/csv-injection";
 export { CsvErrorCode } from "./validate/errors";
+export type { CsvValidationError } from "./validate/errors";
 export { buildCanonicalFingerprint, isDuplicateBundleImport } from "./validate/dedupe";
 export { validateCanonicalBundle } from "./validate/errors";
 export { assertCanonicalRoundTrip } from "./validate/roundtrip";

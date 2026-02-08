@@ -199,6 +199,12 @@ export function TransactionWorkbench() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold sm:text-3xl">{message(locale, "title.main")}</h1>
         <p className="text-sm text-slate-600">{notice}</p>
+        <a
+          href="/csv-studio"
+          className="inline-flex text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
+        >
+          CSV Studio
+        </a>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
