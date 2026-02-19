@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@s8e/ui";
 
 import { useAppLocale } from "@/features/i18n/locale-client";
 import { uiMessage } from "@/features/i18n/messages";
 import type { AppLocale } from "@/features/i18n/types";
+import {
+  runCSVImport,
+  selectEntriesByPolicy,
+  type CSVImportResult,
+  type ImportPolicy
+} from "@/src/usecases/runCSVImport";
 
 const HOUSEHOLD_ID = "household-demo";
 
@@ -57,6 +63,18 @@ export function CsvStudioWorkbench() {
   const [forceMode, setForceMode] = useState(false);
   const [auditEvents, setAuditEvents] = useState<CsvAuditEvent[]>([]);
   const [notice, setNotice] = useState("");
+  const [transactionCsvInput, setTransactionCsvInput] = useState("");
+  const [transactionPolicy, setTransactionPolicy] = useState<ImportPolicy>("fail_on_any_error");
+  const [transactionPreview, setTransactionPreview] = useState<CSVImportResult | null>(null);
+  const [transactionApplyMessage, setTransactionApplyMessage] = useState("");
+
+  const transactionApplyDecision = useMemo(() => {
+    if (!transactionPreview) {
+      return null;
+    }
+
+    return selectEntriesByPolicy(transactionPreview, transactionPolicy);
+  }, [transactionPolicy, transactionPreview]);
 
   const loadCanonicalExport = async () => {
     const response = await fetch(`/api/csv/export/canonical?householdId=${HOUSEHOLD_ID}`);
@@ -162,6 +180,43 @@ export function CsvStudioWorkbench() {
 
     setAuditEvents(data.events);
     setNotice(uiMessage(locale, "csv.notice.auditLoaded"));
+  };
+
+  const handleTransactionCsvFileUpload = async (file: File | undefined) => {
+    if (!file) {
+      return;
+    }
+
+    const text = await file.text();
+    setTransactionCsvInput(text);
+  };
+
+  const handleTransactionCsvPreview = () => {
+    const result = runCSVImport(transactionCsvInput);
+    setTransactionPreview(result);
+    setTransactionApplyMessage("");
+    setNotice(uiMessage(locale, "csv.notice.transactionPreviewCompleted"));
+  };
+
+  const handleTransactionCsvApply = () => {
+    if (!transactionPreview || !transactionApplyDecision) {
+      return;
+    }
+
+    if (!transactionApplyDecision.canApply) {
+      setTransactionApplyMessage(
+        transactionApplyDecision.reason ?? uiMessage(locale, "csv.notice.transactionApplyBlocked")
+      );
+      return;
+    }
+
+    setTransactionApplyMessage(
+      uiMessage(locale, "csv.notice.transactionApplied", {
+        count: transactionApplyDecision.summary.count,
+        income: transactionApplyDecision.summary.totalIncome.toLocaleString(),
+        expense: transactionApplyDecision.summary.totalExpense.toLocaleString()
+      })
+    );
   };
 
   return (
@@ -306,6 +361,104 @@ export function CsvStudioWorkbench() {
             ))
           )}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "csv.title.transactionImport")}</h2>
+        <p className="text-sm text-slate-600">{uiMessage(locale, "csv.label.transactionSchema")}</p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => {
+              void handleTransactionCsvFileUpload(event.target.files?.[0]);
+            }}
+            className="block w-full text-sm text-slate-700"
+          />
+          <Button onClick={handleTransactionCsvPreview}>{uiMessage(locale, "csv.button.transactionPreview")}</Button>
+        </div>
+
+        <label className="mt-4 grid gap-1 text-sm">
+          <span className="font-medium">{uiMessage(locale, "csv.label.transactionCsvInput")}</span>
+          <textarea
+            className="min-h-40 rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
+            value={transactionCsvInput}
+            onChange={(event) => setTransactionCsvInput(event.target.value)}
+            placeholder="계정명,날짜,내용,금액,카테고리"
+          />
+        </label>
+
+        <div className="mt-4 grid gap-2 text-sm">
+          <p className="font-medium">{uiMessage(locale, "csv.label.applyPolicy")}</p>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="transaction-import-policy"
+              checked={transactionPolicy === "fail_on_any_error"}
+              onChange={() => setTransactionPolicy("fail_on_any_error")}
+            />
+            {uiMessage(locale, "csv.policy.failOnAnyError")}
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="transaction-import-policy"
+              checked={transactionPolicy === "allow_partial"}
+              onChange={() => setTransactionPolicy("allow_partial")}
+            />
+            {uiMessage(locale, "csv.policy.allowPartial")}
+          </label>
+        </div>
+
+        {transactionPreview ? (
+          <div className="mt-4 grid gap-2 rounded-lg border border-slate-200 p-3 text-sm">
+            <p>
+              {uiMessage(locale, "csv.label.validRows")}: {transactionPreview.summary.count}
+            </p>
+            <p>
+              {uiMessage(locale, "csv.label.errorRows")}: {transactionPreview.errors.length}
+            </p>
+            <p>
+              {uiMessage(locale, "csv.label.totalIncome")}:{" "}
+              {transactionPreview.summary.totalIncome.toLocaleString()} KRW
+            </p>
+            <p>
+              {uiMessage(locale, "csv.label.totalExpense")}:{" "}
+              {transactionPreview.summary.totalExpense.toLocaleString()} KRW
+            </p>
+            <p>
+              {uiMessage(locale, "csv.label.net")}: {transactionPreview.summary.net.toLocaleString()} KRW
+            </p>
+            <div>
+              <p className="font-medium">{uiMessage(locale, "csv.label.errors")}</p>
+              {transactionPreview.errors.length === 0 ? (
+                <p className="text-slate-500">{uiMessage(locale, "csv.status.none")}</p>
+              ) : (
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  {transactionPreview.errors.map((error, index) => (
+                    <li key={`${error.row}-${error.code}-${index}`}>
+                      {error.row}행 [{error.field}] {error.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <Button
+                onClick={handleTransactionCsvApply}
+                disabled={Boolean(transactionApplyDecision && !transactionApplyDecision.canApply)}
+              >
+                {uiMessage(locale, "csv.button.applyTransactionImport")}
+              </Button>
+              {transactionApplyMessage ? (
+                <p className="text-sm text-slate-700">{transactionApplyMessage}</p>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">{uiMessage(locale, "csv.status.noTransactionPreview")}</p>
+        )}
       </section>
     </main>
   );
