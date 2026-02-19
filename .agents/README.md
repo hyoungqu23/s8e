@@ -1,4 +1,4 @@
-# TwoLine — Product & Engineering Docs (v1.3.2)
+# TwoLine — Product & Engineering Docs (v1.3.3)
 
 This folder contains the **product** and **engineering** documentation for the **TwoLine** MVP,
 built inside the `streamline: s8e` Turborepo monorepo.
@@ -36,4 +36,5 @@ built inside the `streamline: s8e` Turborepo monorepo.
 | MVP_AC_CHECKLIST.md | release gates / QA |
 
 ## Change log
+- v1.3.3: Stabilization update — transaction CSV API reintroduced in `csv-kit`/`ledger-kit`, CSV Studio now supports canonical + simple transaction CSV in one screen, server repository ports added for DB adapter migration readiness.
 - v1.3.2: Updated docs to match the current `s8e` monorepo setup (app/package names, CI scripts, Changesets workflow, tag deploy).
