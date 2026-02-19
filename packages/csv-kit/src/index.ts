@@ -1,21 +1,20 @@
 export { withUtf8Bom } from "./encoding/bom";
 export {
+  type CanonicalAccountRow,
+  type CanonicalAuditEventRow,
   type CanonicalBundle,
   type CanonicalBundleFile,
-  type CanonicalAccountRow,
-  type CanonicalTransactionRow,
   type CanonicalPostingRow,
-  type CanonicalAuditEventRow
+  type CanonicalTransactionRow,
 } from "./formats/canonical/bundle";
 export type { CanonicalManifest } from "./formats/canonical/manifest";
 export { parseCanonicalBundle } from "./formats/canonical/parse";
 export { serializeCanonicalBundle } from "./formats/canonical/serialize";
-export type { FlatCsvRow } from "./formats/flat/schema";
 export { parseFlatCsv } from "./formats/flat/parse";
+export type { FlatCsvRow } from "./formats/flat/schema";
 export { serializeFlatCsv } from "./formats/flat/serialize";
 export { sanitizeCsvCell } from "./security/csv-injection";
-export { CsvErrorCode } from "./validate/errors";
-export type { CsvValidationError } from "./validate/errors";
 export { buildCanonicalFingerprint, isDuplicateBundleImport } from "./validate/dedupe";
-export { validateCanonicalBundle } from "./validate/errors";
+export { CsvErrorCode, validateCanonicalBundle } from "./validate/errors";
+export type { CsvValidationError } from "./validate/errors";
 export { assertCanonicalRoundTrip } from "./validate/roundtrip";
