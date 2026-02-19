@@ -90,6 +90,11 @@ describe("LedgerPostService append-only flow", () => {
     const totals = sumNetByAccount([...original.postings, ...reversal.postings]);
     expect(totals.get("expense:living")).toBe(0);
     expect(totals.get("asset:cash")).toBe(0);
+
+    const auditView = service.listPostedTransactions("household-1", { includeVoided: true });
+    expect(auditView.some((transaction) => transaction.id === original.transaction.id && transaction.isVoided)).toBe(
+      true
+    );
   });
 
   it("correctPosted appends reversal + correction and hides superseded original in current view", () => {
@@ -147,5 +152,40 @@ describe("LedgerPostService append-only flow", () => {
         expect(error.code).toBe(LedgerServiceErrorCode.UNBALANCED_POSTINGS);
       }
     }
+  });
+
+  it("requires un-reconcile before void/correct", () => {
+    const { service } = createService();
+    const draft = service.createDraft({
+      householdId: "household-1",
+      occurredAt: "2026-02-08",
+      memo: "lock-check",
+      postings: buildBalancedPostings(10_000)
+    });
+    const posted = service.postDraft(draft.id);
+    service.reconcilePosted(posted.transaction.id);
+
+    expect(() => service.deletePosted(posted.transaction.id)).toThrowError(/unreconciled first/i);
+    expect(() => service.correctPosted(posted.transaction.id, buildBalancedPostings(11_000))).toThrowError(
+      /unreconciled first/i
+    );
+  });
+
+  it("requires owner role for close/reopen", () => {
+    const { service } = createService();
+    const draft = service.createDraft({
+      householdId: "household-1",
+      occurredAt: "2026-02-08",
+      memo: "owner-check",
+      postings: buildBalancedPostings(10_000)
+    });
+    const posted = service.postDraft(draft.id);
+
+    expect(() => service.closePosted(posted.transaction.id, "member")).toThrowError(/owner/i);
+    const closed = service.closePosted(posted.transaction.id, "owner");
+    expect(closed.lockState).toBe("CLOSED");
+    expect(() => service.reopenPosted(posted.transaction.id, "member")).toThrowError(/owner/i);
+    const reopened = service.reopenPosted(posted.transaction.id, "owner");
+    expect(reopened.lockState).toBe("UNLOCKED");
   });
 });

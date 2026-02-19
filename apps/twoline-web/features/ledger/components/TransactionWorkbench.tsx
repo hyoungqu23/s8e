@@ -32,6 +32,9 @@ type PostedResponse = {
   occurredAt: string;
   sourceTransactionId?: string;
   memo?: string;
+  lockState: "UNLOCKED" | "RECONCILED" | "CLOSED";
+  isVoided: boolean;
+  isSuperseded: boolean;
 };
 
 type ApiErrorPayload = {
@@ -62,6 +65,9 @@ function normalizeApiMessageKey(key?: string) {
     "error.invalidDate": "ledger.error.invalidDate",
     "error.templateNotFound": "ledger.error.templateNotFound",
     "error.unbalanced": "ledger.error.unbalanced",
+    "error.reconciledLocked": "ledger.error.reconciledLocked",
+    "error.closedLocked": "ledger.error.closedLocked",
+    "error.ownerRequired": "ledger.error.ownerRequired",
     "error.unknown": "ledger.error.unknown"
   };
 
@@ -108,6 +114,7 @@ export function TransactionWorkbench() {
   const [isLoadingPosted, setIsLoadingPosted] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isQuickAddApplied, setIsQuickAddApplied] = useState(false);
+  const [includeVoided, setIncludeVoided] = useState(false);
 
   const selectedTemplate = useMemo(
     () => LEDGER_TEMPLATES.find((template) => template.id === form.templateId),
@@ -117,7 +124,9 @@ export function TransactionWorkbench() {
   const loadPostedTransactions = async () => {
     setIsLoadingPosted(true);
     try {
-      const response = await fetch(`/api/ledger/posted?householdId=${HOUSEHOLD_ID}`);
+      const response = await fetch(
+        `/api/ledger/posted?householdId=${HOUSEHOLD_ID}&includeVoided=${includeVoided ? "true" : "false"}`
+      );
       if (!response.ok) {
         setNotice(await readErrorMessage(response, locale));
         return;
@@ -131,7 +140,7 @@ export function TransactionWorkbench() {
 
   useEffect(() => {
     void loadPostedTransactions();
-  }, []);
+  }, [includeVoided]);
 
   const createDraft = async () => {
     const errors = validateForm(form, locale);
@@ -213,6 +222,51 @@ export function TransactionWorkbench() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleVoidPosted = async (postedTransactionId: string) => {
+    const response = await fetch("/api/ledger/void", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        postedTransactionId
+      })
+    });
+
+    if (!response.ok) {
+      setNotice(await readErrorMessage(response, locale));
+      return;
+    }
+
+    await loadPostedTransactions();
+    setNotice(uiMessage(locale, "ledger.success.voided"));
+  };
+
+  const handleLockAction = async (
+    postedTransactionId: string,
+    action: "reconcile" | "unreconcile" | "close" | "reopen"
+  ) => {
+    const response = await fetch("/api/ledger/locks", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        postedTransactionId,
+        action,
+        actorRole: action === "close" || action === "reopen" ? "owner" : "member"
+      })
+    });
+
+    if (!response.ok) {
+      setNotice(await readErrorMessage(response, locale));
+      return;
+    }
+
+    await loadPostedTransactions();
+    setNotice(uiMessage(locale, "ledger.success.lockUpdated"));
   };
 
   return (
@@ -384,6 +438,14 @@ export function TransactionWorkbench() {
 
           <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <h2 className="mb-3 text-lg font-semibold">{uiMessage(locale, "ledger.title.posted")}</h2>
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={includeVoided}
+                onChange={(event) => setIncludeVoided(event.target.checked)}
+              />
+              {uiMessage(locale, "ledger.filter.showVoided")}
+            </label>
             <div className="grid gap-2">
               {isLoadingPosted ? (
                 <p className="text-sm text-slate-500">{uiMessage(locale, "common.loading")}</p>
@@ -394,11 +456,68 @@ export function TransactionWorkbench() {
                   <div key={transaction.id} className="rounded-xl border border-slate-200 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold">{transaction.memo || transaction.id}</p>
-                      <span className="text-xs text-slate-600">
-                        {uiMessage(locale, `ledger.meta.kind.${transaction.kind}`)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-600">
+                          {uiMessage(locale, `ledger.meta.kind.${transaction.kind}`)}
+                        </span>
+                        {transaction.isVoided ? (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                            {uiMessage(locale, "ledger.meta.voided")}
+                          </span>
+                        ) : null}
+                        {transaction.isSuperseded ? (
+                          <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-700">
+                            {uiMessage(locale, "ledger.meta.superseded")}
+                          </span>
+                        ) : null}
+                        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700">
+                          {uiMessage(locale, `ledger.lock.${transaction.lockState}`)}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">{transaction.occurredAt}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        className="text-xs"
+                        disabled={transaction.kind !== "ORIGINAL"}
+                        onClick={() => void handleVoidPosted(transaction.id)}
+                      >
+                        {uiMessage(locale, "ledger.button.void")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="text-xs"
+                        disabled={transaction.lockState !== "UNLOCKED"}
+                        onClick={() => void handleLockAction(transaction.id, "reconcile")}
+                      >
+                        {uiMessage(locale, "ledger.button.reconcile")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="text-xs"
+                        disabled={transaction.lockState !== "RECONCILED"}
+                        onClick={() => void handleLockAction(transaction.id, "unreconcile")}
+                      >
+                        {uiMessage(locale, "ledger.button.unreconcile")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="text-xs"
+                        disabled={transaction.lockState === "CLOSED"}
+                        onClick={() => void handleLockAction(transaction.id, "close")}
+                      >
+                        {uiMessage(locale, "ledger.button.closePeriod")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="text-xs"
+                        disabled={transaction.lockState !== "CLOSED"}
+                        onClick={() => void handleLockAction(transaction.id, "reopen")}
+                      >
+                        {uiMessage(locale, "ledger.button.reopenPeriod")}
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}

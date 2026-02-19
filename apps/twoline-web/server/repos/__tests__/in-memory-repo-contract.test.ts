@@ -29,7 +29,8 @@ function createDraftTransaction(id: string): TransactionRecord {
     status: "DRAFT",
     occurredAt: "2026-02-08",
     memo: "memo",
-    source: "MANUAL"
+    source: "MANUAL",
+    lockState: "UNLOCKED"
   };
 }
 

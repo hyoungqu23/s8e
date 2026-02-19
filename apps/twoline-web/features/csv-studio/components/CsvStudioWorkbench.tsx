@@ -67,6 +67,7 @@ export function CsvStudioWorkbench() {
   const [transactionPolicy, setTransactionPolicy] = useState<ImportPolicy>("fail_on_any_error");
   const [transactionPreview, setTransactionPreview] = useState<CSVImportResult | null>(null);
   const [transactionApplyMessage, setTransactionApplyMessage] = useState("");
+  const [appliedEntries, setAppliedEntries] = useState<CSVImportResult["entries"]>([]);
 
   const transactionApplyDecision = useMemo(() => {
     if (!transactionPreview) {
@@ -205,7 +206,7 @@ export function CsvStudioWorkbench() {
 
     if (!transactionApplyDecision.canApply) {
       setTransactionApplyMessage(
-        transactionApplyDecision.reason ?? uiMessage(locale, "csv.notice.transactionApplyBlocked")
+        uiMessage(locale, transactionApplyDecision.reasonKey ?? "csv.notice.transactionApplyBlocked")
       );
       return;
     }
@@ -217,6 +218,7 @@ export function CsvStudioWorkbench() {
         expense: transactionApplyDecision.summary.totalExpense.toLocaleString()
       })
     );
+    setAppliedEntries(transactionApplyDecision.entries);
   };
 
   return (
@@ -260,6 +262,7 @@ export function CsvStudioWorkbench() {
               {uiMessage(locale, "csv.button.useCanonicalAsImport")}
             </Button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">{uiMessage(locale, "csv.label.excelBomHint")}</p>
           <label className="mt-4 grid gap-1 text-sm">
             <span className="font-medium">{uiMessage(locale, "csv.label.canonicalFiles")}</span>
             <textarea
@@ -455,6 +458,19 @@ export function CsvStudioWorkbench() {
                 <p className="text-sm text-slate-700">{transactionApplyMessage}</p>
               ) : null}
             </div>
+            {appliedEntries.length > 0 ? (
+              <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs">
+                <p className="font-medium text-emerald-800">{uiMessage(locale, "csv.label.appliedEntries")}</p>
+                <ul className="mt-1 space-y-1 text-emerald-900">
+                  {appliedEntries.slice(0, 5).map((entry, index) => (
+                    <li key={`${entry.date}-${entry.accountName}-${entry.amount}-${index}`}>
+                      {entry.date} / {entry.accountName} / {entry.amount.toLocaleString()} /{" "}
+                      {entry.description}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="mt-4 text-sm text-slate-500">{uiMessage(locale, "csv.status.noTransactionPreview")}</p>

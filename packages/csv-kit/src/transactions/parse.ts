@@ -32,6 +32,15 @@ function toRawRow(cells: string[]): RawTransactionRow {
   };
 }
 
+function makeColumnCountError(row: number, expected: number, actual: number): CSVRowError {
+  return {
+    row,
+    field: "헤더",
+    code: "INVALID_COLUMN_COUNT",
+    message: `${row}행의 컬럼 수가 올바르지 않습니다. expected=${expected}, actual=${actual}`
+  };
+}
+
 function isEmptyRow(cells: string[]) {
   return cells.every((cell) => cell.trim().length === 0);
 }
@@ -54,9 +63,28 @@ export function parseTransactionCSV(input: string): { rows: RawTransactionRow[];
     };
   }
 
-  const rows = bodyCells.filter((cells) => !isEmptyRow(cells)).map((cells) => toRawRow(cells));
+  const errors: CSVRowError[] = [];
+  const rows: RawTransactionRow[] = [];
+
+  bodyCells.forEach((cells, index) => {
+    const rowNumber = index + 2;
+    if (isEmptyRow(cells)) {
+      return;
+    }
+
+    if (cells.length !== CSVHeader.length) {
+      errors.push(makeColumnCountError(rowNumber, CSVHeader.length, cells.length));
+      return;
+    }
+
+    rows.push({
+      ...toRawRow(cells),
+      rowNumber
+    });
+  });
+
   return {
     rows,
-    errors: []
+    errors
   };
 }

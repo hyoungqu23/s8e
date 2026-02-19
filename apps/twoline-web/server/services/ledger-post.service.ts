@@ -8,7 +8,12 @@ import {
 } from "@s8e/ledger-kit";
 
 import { LedgerServiceError, LedgerServiceErrorCode } from "../ledger/errors";
-import type { CreateDraftInput, PostedTransactionAggregate, TransactionRecord } from "../ledger/types";
+import type {
+  CreateDraftInput,
+  HouseholdRole,
+  PostedTransactionAggregate,
+  TransactionRecord
+} from "../ledger/types";
 import type { PostingRepository, TransactionRepository } from "../repos/ports";
 
 type IdFactory = () => string;
@@ -16,6 +21,15 @@ type IdFactory = () => string;
 type CorrectResult = {
   reversal: PostedTransactionAggregate;
   correction: PostedTransactionAggregate;
+};
+
+type ListPostedOptions = {
+  includeVoided?: boolean;
+};
+
+type ListedPostedTransaction = TransactionRecord & {
+  isVoided: boolean;
+  isSuperseded: boolean;
 };
 
 function defaultIdFactory() {
@@ -34,6 +48,8 @@ function toPostingInputs(postings: LedgerPosting[]): PostingInput[] {
 }
 
 export class LedgerPostService {
+  private readonly lockStates = new Map<string, TransactionRecord["lockState"]>();
+
   constructor(
     private readonly transactionsRepo: TransactionRepository,
     private readonly postingsRepo: PostingRepository,
@@ -51,7 +67,8 @@ export class LedgerPostService {
       status: "DRAFT",
       occurredAt: input.occurredAt,
       memo: input.memo,
-      source: input.source ?? "MANUAL"
+      source: input.source ?? "MANUAL",
+      lockState: "UNLOCKED"
     };
 
     const postings = input.postings.map((posting) => ({
@@ -91,15 +108,18 @@ export class LedgerPostService {
     }
 
     const posted = this.transactionsRepo.update(draftTransactionId, { status: "POSTED" });
+    this.logAudit("POSTED", posted);
     return { transaction: posted, postings };
   }
 
   voidPosted(postedTransactionId: string): PostedTransactionAggregate {
     const original = this.getPostedTransaction(postedTransactionId);
     const originalRecord = this.requireTransaction(postedTransactionId);
+    this.assertUnlocked(originalRecord);
     const reversal = voidTransaction(original, { idFactory: this.idFactory });
-
-    return this.persistPostedTransaction(reversal, originalRecord.householdId, originalRecord.source);
+    const persisted = this.persistPostedTransaction(reversal, originalRecord.householdId, originalRecord.source);
+    this.logAudit("VOIDED", persisted.transaction);
+    return persisted;
   }
 
   deletePosted(postedTransactionId: string): PostedTransactionAggregate {
@@ -109,6 +129,7 @@ export class LedgerPostService {
   correctPosted(postedTransactionId: string, correctionInputs: PostingInput[]): CorrectResult {
     const original = this.getPostedTransaction(postedTransactionId);
     const originalRecord = this.requireTransaction(postedTransactionId);
+    this.assertUnlocked(originalRecord);
 
     const result = correctTransaction(original, correctionInputs, { idFactory: this.idFactory });
     const reversal = this.persistPostedTransaction(
@@ -121,6 +142,7 @@ export class LedgerPostService {
       originalRecord.householdId,
       originalRecord.source
     );
+    this.logAudit("CORRECTED", correction.transaction);
 
     return {
       reversal,
@@ -128,20 +150,141 @@ export class LedgerPostService {
     };
   }
 
+  reconcilePosted(postedTransactionId: string): TransactionRecord {
+    const transaction = this.requireTransaction(postedTransactionId);
+    if (transaction.status !== "POSTED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not posted: ${postedTransactionId}`
+      );
+    }
+    const currentLockState = this.getLockState(transaction.id);
+    if (currentLockState === "CLOSED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.CLOSED_LOCKED,
+        `Transaction is in closed period: ${postedTransactionId}`
+      );
+    }
+    const updated = this.withLockState(transaction, "RECONCILED");
+    this.logAudit("RECONCILED", updated);
+    return updated;
+  }
+
+  unreconcilePosted(postedTransactionId: string): TransactionRecord {
+    const transaction = this.requireTransaction(postedTransactionId);
+    if (transaction.status !== "POSTED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not posted: ${postedTransactionId}`
+      );
+    }
+    if (this.getLockState(transaction.id) !== "RECONCILED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not reconciled: ${postedTransactionId}`
+      );
+    }
+    const updated = this.withLockState(transaction, "UNLOCKED");
+    this.logAudit("UNRECONCILED", updated);
+    return updated;
+  }
+
+  closePosted(postedTransactionId: string, actorRole: HouseholdRole): TransactionRecord {
+    if (actorRole !== "owner") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.OWNER_REQUIRED,
+        "Only owner can close period"
+      );
+    }
+
+    const transaction = this.requireTransaction(postedTransactionId);
+    if (transaction.status !== "POSTED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not posted: ${postedTransactionId}`
+      );
+    }
+
+    const updated = this.withLockState(transaction, "CLOSED");
+    this.logAudit("CLOSED", updated);
+    return updated;
+  }
+
+  reopenPosted(postedTransactionId: string, actorRole: HouseholdRole): TransactionRecord {
+    if (actorRole !== "owner") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.OWNER_REQUIRED,
+        "Only owner can reopen period"
+      );
+    }
+
+    const transaction = this.requireTransaction(postedTransactionId);
+    if (transaction.status !== "POSTED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not posted: ${postedTransactionId}`
+      );
+    }
+    if (this.getLockState(transaction.id) !== "CLOSED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.INVALID_STATE,
+        `Transaction is not closed: ${postedTransactionId}`
+      );
+    }
+    const updated = this.withLockState(transaction, "UNLOCKED");
+    this.logAudit("REOPENED", updated);
+    return updated;
+  }
+
   listCurrentPostedTransactions(householdId: string): TransactionRecord[] {
+    return this.listPostedTransactions(householdId).map((transaction) => ({
+      id: transaction.id,
+      householdId: transaction.householdId,
+      chainId: transaction.chainId,
+      kind: transaction.kind,
+      status: transaction.status,
+      occurredAt: transaction.occurredAt,
+      sourceTransactionId: transaction.sourceTransactionId,
+      memo: transaction.memo,
+      source: transaction.source,
+      lockState: transaction.lockState
+    }));
+  }
+
+  listPostedTransactions(householdId: string, options: ListPostedOptions = {}): ListedPostedTransaction[] {
     const posted = this.transactionsRepo
       .listAll()
       .filter((transaction) => transaction.householdId === householdId && transaction.status === "POSTED");
 
-    const hiddenIds = new Set(
+    const voidedIds = new Set(
       posted
         .filter((transaction) => transaction.kind === "REVERSAL")
         .map((transaction) => transaction.sourceTransactionId)
         .filter((id): id is string => Boolean(id))
     );
+    const supersededIds = new Set(
+      posted
+        .filter((transaction) => transaction.kind === "CORRECTION")
+        .map((transaction) => transaction.sourceTransactionId)
+        .filter((id): id is string => Boolean(id))
+    );
 
-    return posted.filter(
-      (transaction) => transaction.kind !== "REVERSAL" && !hiddenIds.has(transaction.id)
+    const normalized = posted
+      .map((transaction) => ({
+        ...transaction,
+        lockState: this.getLockState(transaction.id),
+        isVoided: voidedIds.has(transaction.id),
+        isSuperseded: supersededIds.has(transaction.id)
+      }))
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+
+    if (options.includeVoided) {
+      return normalized;
+    }
+
+    return normalized.filter(
+      (transaction) =>
+        transaction.kind !== "REVERSAL" && !transaction.isVoided && !transaction.isSuperseded
     );
   }
 
@@ -191,7 +334,8 @@ export class LedgerPostService {
       occurredAt: transaction.occurredAt,
       sourceTransactionId: transaction.sourceTransactionId,
       memo: transaction.memo,
-      source
+      source,
+      lockState: "UNLOCKED"
     };
 
     this.transactionsRepo.create(record);
@@ -201,5 +345,48 @@ export class LedgerPostService {
       transaction: record,
       postings: transaction.postings
     };
+  }
+
+  private assertUnlocked(transaction: TransactionRecord) {
+    const lockState = this.getLockState(transaction.id);
+    if (lockState === "RECONCILED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.RECONCILED_LOCKED,
+        `Transaction must be unreconciled first: ${transaction.id}`
+      );
+    }
+
+    if (lockState === "CLOSED") {
+      throw new LedgerServiceError(
+        LedgerServiceErrorCode.CLOSED_LOCKED,
+        `Transaction must be reopened first: ${transaction.id}`
+      );
+    }
+  }
+
+  private withLockState(transaction: TransactionRecord, lockState: TransactionRecord["lockState"]) {
+    this.lockStates.set(transaction.id, lockState);
+    return {
+      ...transaction,
+      lockState
+    };
+  }
+
+  private getLockState(transactionId: string): TransactionRecord["lockState"] {
+    return this.lockStates.get(transactionId) ?? "UNLOCKED";
+  }
+
+  private logAudit(eventType: string, transaction: TransactionRecord) {
+    console.info(
+      JSON.stringify({
+        scope: "ledger",
+        eventType,
+        transactionId: transaction.id,
+        householdId: transaction.householdId,
+        chainId: transaction.chainId,
+        kind: transaction.kind,
+        lockState: transaction.lockState
+      })
+    );
   }
 }

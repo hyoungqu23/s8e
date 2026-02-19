@@ -45,23 +45,28 @@ export function normalizeAndValidateRows(rows: RawTransactionRow[]): {
   const errors: CSVRowError[] = [];
 
   for (const [index, rawRow] of rows.entries()) {
-    const rowNumber = index + 2;
+    const rowNumber = rawRow.rowNumber ?? index + 2;
     const accountName = rawRow.accountName.trim();
     const date = rawRow.date.trim();
     const description = rawRow.description.trim();
     const amountText = rawRow.amount.trim();
+    let rowHasError = false;
 
     if (!accountName) {
       pushRequiredError(errors, rowNumber, "계정명");
+      rowHasError = true;
     }
     if (!date) {
       pushRequiredError(errors, rowNumber, "날짜");
+      rowHasError = true;
     }
     if (!description) {
       pushRequiredError(errors, rowNumber, "내용");
+      rowHasError = true;
     }
     if (!amountText) {
       pushRequiredError(errors, rowNumber, "금액");
+      rowHasError = true;
     }
 
     const amount = amountText ? parseAmount(amountText) : null;
@@ -72,6 +77,7 @@ export function normalizeAndValidateRows(rows: RawTransactionRow[]): {
         code: "INVALID_DATE",
         message: "날짜는 YYYY-MM-DD 형식의 유효한 값이어야 합니다."
       });
+      rowHasError = true;
     }
 
     if (amountText && amount === null) {
@@ -81,10 +87,10 @@ export function normalizeAndValidateRows(rows: RawTransactionRow[]): {
         code: "INVALID_AMOUNT",
         message: "금액은 숫자로 변환 가능해야 합니다."
       });
+      rowHasError = true;
     }
 
-    const hasRowErrors = errors.some((error) => error.row === rowNumber);
-    if (hasRowErrors || amount === null) {
+    if (rowHasError || amount === null) {
       continue;
     }
 

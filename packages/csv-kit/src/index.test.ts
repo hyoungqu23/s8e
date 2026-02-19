@@ -8,15 +8,15 @@ describe("parseTransactionCSV", () => {
     const result = parseTransactionCSV(csv);
 
     expect(result.errors).toEqual([]);
-    expect(result.rows).toEqual([
-      {
-        accountName: "현금",
-        date: "2026-01-01",
-        description: "점심",
-        amount: "-12000",
-        category: "식비"
-      }
-    ]);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      rowNumber: 2,
+      accountName: "현금",
+      date: "2026-01-01",
+      description: "점심",
+      amount: "-12000",
+      category: "식비"
+    });
   });
 
   it("헤더가 다르면 즉시 실패한다", () => {
@@ -25,6 +25,16 @@ describe("parseTransactionCSV", () => {
     expect(result.rows).toEqual([]);
     expect(result.errors[0]?.field).toBe("헤더");
     expect(result.errors[0]?.code).toBe("INVALID_HEADER");
+  });
+
+  it("컬럼 수가 다르면 행 단위 파싱 에러를 반환한다", () => {
+    const csv = `${CSVHeader.join(",")}\n현금,2026-01-01,점심,-12000,식비,추가컬럼`;
+    const result = parseTransactionCSV(csv);
+
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.code).toBe("INVALID_COLUMN_COUNT");
+    expect(result.errors[0]?.row).toBe(2);
   });
 });
 
@@ -137,5 +147,18 @@ describe("normalizeAndValidateRows", () => {
     const result = normalizeAndValidateRows(rows);
     expect(result.errors).toEqual([]);
     expect(result.validRows).toHaveLength(2);
+  });
+
+  it("원본 CSV 라인 번호를 유지해 오류 row를 반환한다", () => {
+    const parsed = parseTransactionCSV(
+      `${CSVHeader.join(",")}\n` +
+        "매출,2026-01-01,서비스 결제,10000,수입\n" +
+        "\n" +
+        "현금,2026/01/02,점심,-5000,식비"
+    );
+
+    const validated = normalizeAndValidateRows(parsed.rows);
+    expect(validated.errors).toHaveLength(1);
+    expect(validated.errors[0]?.row).toBe(4);
   });
 });

@@ -3,6 +3,7 @@ export const CSVHeader = ["계정명", "날짜", "내용", "금액", "카테고�
 export type CSVField = (typeof CSVHeader)[number] | "헤더";
 
 export type RawTransactionRow = {
+  rowNumber?: number;
   accountName: string;
   date: string;
   description: string;

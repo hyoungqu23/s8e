@@ -28,14 +28,14 @@ export function runCSVImport(input: string): CSVImportResult {
 
 export function selectEntriesByPolicy(result: CSVImportResult, policy: ImportPolicy): {
   canApply: boolean;
-  reason?: string;
+  reasonKey?: string;
   entries: LedgerEntry[];
   summary: LedgerSummary;
 } {
   if (policy === "fail_on_any_error" && result.errors.length > 0) {
     return {
       canApply: false,
-      reason: "오류가 있어 전체 반영 정책으로는 적용할 수 없습니다.",
+      reasonKey: "csv.notice.transactionApplyBlocked",
       entries: [],
       summary: summarizeLedger([])
     };

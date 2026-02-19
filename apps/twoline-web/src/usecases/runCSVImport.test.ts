@@ -39,4 +39,16 @@ describe("runCSVImport", () => {
     expect(decision.canApply).toBe(true);
     expect(decision.summary.count).toBe(1);
   });
+
+  it("컬럼 수가 맞지 않으면 파싱 에러로 반영 대상에서 제외된다", () => {
+    const input = [
+      "계정명,날짜,내용,금액,카테고리",
+      "매출,2026-01-01,서비스 결제,10000,수입,EXTRA",
+      "현금,2026-01-02,점심,-5000,식비"
+    ].join("\n");
+    const result = runCSVImport(input);
+
+    expect(result.parseErrors.some((error) => error.code === "INVALID_COLUMN_COUNT")).toBe(true);
+    expect(result.summary.count).toBe(1);
+  });
 });

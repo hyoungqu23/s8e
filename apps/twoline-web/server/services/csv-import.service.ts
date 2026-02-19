@@ -359,7 +359,8 @@ export class CsvImportService {
         occurredAt: txRow.occurred_at,
         sourceTransactionId: this.resolveSourceTransactionId(txPostings, postingTxIndex),
         memo: txRow.memo,
-        source: "CSV_IMPORT"
+        source: "CSV_IMPORT",
+        lockState: "UNLOCKED"
       };
 
       this.transactionsRepo.create(transaction);

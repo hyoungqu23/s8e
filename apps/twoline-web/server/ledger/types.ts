@@ -2,6 +2,8 @@ import type { LedgerPosting, PostingInput, TransactionKind } from "@s8e/ledger-k
 
 export type HouseholdTransactionStatus = "DRAFT" | "POSTED";
 export type TransactionSource = "MANUAL" | "QUICK_ADD" | "RECURRING" | "CSV_IMPORT";
+export type TransactionLockState = "UNLOCKED" | "RECONCILED" | "CLOSED";
+export type HouseholdRole = "owner" | "member";
 
 export type TransactionRecord = {
   id: string;
@@ -13,6 +15,7 @@ export type TransactionRecord = {
   sourceTransactionId?: string;
   memo?: string;
   source: TransactionSource;
+  lockState: TransactionLockState;
 };
 
 export type CreateDraftInput = {

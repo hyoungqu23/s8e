@@ -31,7 +31,7 @@ export function CSVImportClient() {
     }
 
     if (!applyDecision.canApply) {
-      setApplyMessage(applyDecision.reason ?? "반영할 수 없습니다.");
+      setApplyMessage("오류가 있어 현재 정책으로는 반영할 수 없습니다.");
       return;
     }
 
@@ -132,7 +132,7 @@ export function CSVImportClient() {
               반영 실행
             </Button>
             {applyDecision && !applyDecision.canApply ? (
-              <span className="text-sm text-rose-700">{applyDecision.reason}</span>
+              <span className="text-sm text-rose-700">오류가 있어 현재 정책으로는 반영할 수 없습니다.</span>
             ) : null}
           </div>
 

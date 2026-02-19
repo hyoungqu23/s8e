@@ -35,6 +35,30 @@ function fromCode(errorCode: string) {
     };
   }
 
+  if (errorCode.includes("RECONCILED_LOCKED")) {
+    return {
+      error_code: errorCode,
+      message_key: "error.reconciledLocked",
+      suggested_fix: "Un-reconcile transaction before editing or deleting"
+    };
+  }
+
+  if (errorCode.includes("CLOSED_LOCKED")) {
+    return {
+      error_code: errorCode,
+      message_key: "error.closedLocked",
+      suggested_fix: "Reopen period first (owner only)"
+    };
+  }
+
+  if (errorCode.includes("OWNER_REQUIRED")) {
+    return {
+      error_code: errorCode,
+      message_key: "error.ownerRequired",
+      suggested_fix: "Retry with owner role"
+    };
+  }
+
   return {
     error_code: errorCode,
     message_key: "error.unknown",
@@ -44,6 +68,17 @@ function fromCode(errorCode: string) {
 
 export function errorResponse(error: unknown) {
   const status = error instanceof LedgerServiceError ? 409 : 400;
+
+  if (error instanceof LedgerServiceError) {
+    const mapped = fromCode(error.code);
+    return NextResponse.json(
+      {
+        ok: false,
+        ...mapped
+      },
+      { status }
+    );
+  }
 
   if (error instanceof Error) {
     const mapped = fromCode(error.message || error.name);
