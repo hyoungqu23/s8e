@@ -17,7 +17,7 @@
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": ["^build", "^test"],
       "outputs": []
     },
     "dev": {
