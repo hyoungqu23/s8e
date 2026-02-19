@@ -9,8 +9,7 @@ import {
 
 import { LedgerServiceError, LedgerServiceErrorCode } from "../ledger/errors";
 import type { CreateDraftInput, PostedTransactionAggregate, TransactionRecord } from "../ledger/types";
-import { InMemoryPostingsRepo } from "../repos/postings.repo";
-import { InMemoryTransactionsRepo } from "../repos/transactions.repo";
+import type { PostingRepository, TransactionRepository } from "../repos/ports";
 
 type IdFactory = () => string;
 
@@ -36,8 +35,8 @@ function toPostingInputs(postings: LedgerPosting[]): PostingInput[] {
 
 export class LedgerPostService {
   constructor(
-    private readonly transactionsRepo: InMemoryTransactionsRepo,
-    private readonly postingsRepo: InMemoryPostingsRepo,
+    private readonly transactionsRepo: TransactionRepository,
+    private readonly postingsRepo: PostingRepository,
     private readonly idFactory: IdFactory = defaultIdFactory
   ) {}
 

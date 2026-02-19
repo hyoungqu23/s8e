@@ -1,4 +1,4 @@
-import { InMemoryPostingsRepo } from "../repos/postings.repo";
+import type { PostingRepository } from "../repos/ports";
 import { CsvImportService } from "./csv-import.service";
 import { LedgerPostService } from "./ledger-post.service";
 import { RecurringService } from "./recurring.service";
@@ -68,7 +68,7 @@ function toPct(numerator: number, denominator: number) {
 export class DashboardService {
   constructor(
     private readonly ledgerPostService: LedgerPostService,
-    private readonly postingsRepo: InMemoryPostingsRepo,
+    private readonly postingsRepo: PostingRepository,
     private readonly recurringService: RecurringService,
     private readonly csvImportService: CsvImportService
   ) {}

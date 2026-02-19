@@ -1,9 +1,10 @@
 import { LedgerServiceError, LedgerServiceErrorCode } from "../ledger/errors";
 import type { HouseholdTransactionStatus, TransactionRecord } from "../ledger/types";
+import type { TransactionRepository } from "./ports";
 
 type UpdatePatch = Partial<Omit<TransactionRecord, "id">>;
 
-export class InMemoryTransactionsRepo {
+export class InMemoryTransactionsRepo implements TransactionRepository {
   private readonly byId = new Map<string, TransactionRecord>();
 
   create(record: TransactionRecord) {

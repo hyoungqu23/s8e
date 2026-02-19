@@ -1,10 +1,11 @@
 import type { LedgerPosting } from "@s8e/ledger-kit";
 
 import { LedgerServiceError, LedgerServiceErrorCode } from "../ledger/errors";
+import type { PostingRepository } from "./ports";
 
 type StatusProvider = (transactionId: string) => "DRAFT" | "POSTED" | undefined;
 
-export class InMemoryPostingsRepo {
+export class InMemoryPostingsRepo implements PostingRepository {
   private readonly byId = new Map<string, LedgerPosting>();
   private readonly byTransactionId = new Map<string, Set<string>>();
 

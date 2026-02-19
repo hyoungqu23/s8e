@@ -12,8 +12,7 @@ import {
 import { validateBalanced, type LedgerPosting, type PostingInput, type TransactionKind } from "@s8e/ledger-kit";
 
 import type { TransactionRecord } from "../ledger/types";
-import { InMemoryPostingsRepo } from "../repos/postings.repo";
-import { InMemoryTransactionsRepo } from "../repos/transactions.repo";
+import type { PostingRepository, TransactionRepository } from "../repos/ports";
 
 type SessionStatus = "PREVIEWED" | "BLOCKED" | "COMMITTED";
 
@@ -82,8 +81,8 @@ export class CsvImportService {
   private sequence = 1;
 
   constructor(
-    private readonly transactionsRepo: InMemoryTransactionsRepo,
-    private readonly postingsRepo: InMemoryPostingsRepo
+    private readonly transactionsRepo: TransactionRepository,
+    private readonly postingsRepo: PostingRepository
   ) {}
 
   previewCanonical(input: PreviewInput) {
